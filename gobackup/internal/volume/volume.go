@@ -8,16 +8,15 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/tink-ab/tempfile"
-
 	"../globalsettings"
+	"../mylog"
+	"github.com/tink-ab/tempfile"
 )
-
-const volsize = 1024 * 1024 * 10
 
 //Volume is a set of bytes containing multiple files
 type Volume struct {
-	Path string
+	file   *os.File
+	writer *tar.Writer
 }
 
 //New creates a new volume
@@ -27,21 +26,21 @@ func New() Volume {
 	if err != nil {
 		log.Fatal(err)
 	}
-	return Volume{tmpfile.Name()}
-}
+	archivepath := tmpfile.Name()
 
-//FromFile creates volume from an existing volume file on disk
-func FromFile(tarfile string) Volume {
-	return Volume{tarfile}
+	volfile, err := os.OpenFile(archivepath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModeAppend)
+	if err != nil {
+		log.Fatalf("Error opening volume file: %v", err)
+	}
+
+	writer := tar.NewWriter(volfile)
+	mylog.Log.Debugf("Volume '%v' created", archivepath)
+	return Volume{volfile, writer}
 }
 
 //List returns a list of all files contained in this volume
-func List(volume Volume) ([]string, error) {
-	file, err := os.Open(volume.Path)
-	if err != nil {
-		return nil, fmt.Errorf("Error opening file: %v", err)
-	}
-	tr := tar.NewReader(file)
+func (volume Volume) List() ([]string, error) {
+	tr := tar.NewReader(volume.file)
 	var result []string
 	for {
 		hdr, err := tr.Next()
@@ -56,8 +55,8 @@ func List(volume Volume) ([]string, error) {
 	return result, nil
 }
 
-//Add a file in local filesystem to a volume
-func Add(volume Volume, path string) (int64, error) {
+//Add a file in local filesystem to a volume. Returns bytes written.
+func (volume Volume) Add(path string) (int64, error) {
 	abspath, _ := filepath.Abs(path)
 	finfo, err := os.Lstat(abspath)
 	if err != nil {
@@ -69,30 +68,41 @@ func Add(volume Volume, path string) (int64, error) {
 		return 0, fmt.Errorf("Error opening datafile: %v", err)
 	}
 
-	tarfile, err := os.OpenFile(volume.Path, os.O_WRONLY|os.O_CREATE|os.O_APPEND|os.O_TRUNC, os.ModeAppend)
 	if err != nil {
 		return 0, fmt.Errorf("Error opening volume: %v", err)
 	}
-	defer tarfile.Close()
 
-	tw := tar.NewWriter(tarfile)
 	hdr, err := tar.FileInfoHeader(finfo, finfo.Name())
 	if err != nil {
 		return 0, fmt.Errorf("Error creating header: %v", err)
 	}
 	hdr.Name = abspath
-	if err := tw.WriteHeader(hdr); err != nil {
+	if err := volume.writer.WriteHeader(hdr); err != nil {
 		return 0, fmt.Errorf("Error writing header: %v", err)
 	}
 
-	bytes, err := io.Copy(tw, datafile)
+	bytes, err := io.Copy(volume.writer, datafile)
 	if err != nil {
 		return 0, fmt.Errorf("Error writing data: %v", err)
 	}
 
-	if err := tw.Close(); err != nil {
-		return 0, fmt.Errorf("Error closing volume: %v", err)
-	}
-
+	volume.writer.Flush()
 	return bytes, nil
+}
+
+func (volume Volume) Close() {
+	if err := volume.writer.Close(); err != nil {
+		log.Fatalf("Error closing volume: %v", err)
+	}
+	defer volume.file.Close()
+	mylog.Log.Debugf("Volume '%v' closed", volume.file.Name())
+}
+
+//Size returns the size of this volume
+func (volume Volume) Size() int64 {
+	finfo, err := os.Lstat(volume.file.Name())
+	if err != nil {
+		log.Fatal(err)
+	}
+	return finfo.Size()
 }

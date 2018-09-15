@@ -7,7 +7,8 @@ import (
 )
 
 //VolumeExtension defines the Filextension for backup folumes
-const VolumeExtension = "govol"
+const VolumeExtension = ".gbv"
+const ManifestExtension = ".gmf"
 const mkdirpermissions os.FileMode = 0700
 const appname string = "gobackup"
 

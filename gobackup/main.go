@@ -1,45 +1,51 @@
 package main
 
 import (
-	"fmt"
-	"log"
+	"flag"
 	"os"
 	"path/filepath"
+	"time"
 
-	"./internal/backuprecord"
+	"./internal/backupsession"
+	"./internal/mylog"
 )
 
-const datadirectory = "../../"
-const chunksize = 1024 * 1024
+const defaultMaxVolumeSize = 1024 * 1024 //1M
+const datadirectory = "../testdata"
 
 func main() {
+	mylog.Init()
+	var maxVolSize = flag.Int("maxvolsize", defaultMaxVolumeSize, "Maximum volume size. If the size of a volume exceeds this number, a new one will be created")
 
-	var entries []backuprecord.Backuprecord
+	flag.Parse()
 
+	session := backupsession.New(int64(*maxVolSize))
+
+	mylog.Log.Infof("Starting backup for directory %s", datadirectory)
 	err := filepath.Walk(datadirectory,
 		func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
+
 			isSymlink := info.Mode()&os.ModeSymlink != 0
 			if !info.IsDir() && !isSymlink {
+				start := time.Now()
+				processerr := session.Process(path)
+				elapsed := time.Since(start)
 
-				// abspath, _ := filepath.Abs(path)
-				// record := backuprecord.New(abspath, info, chunksize)
-				// fmt.Println(path, record.Checksum, len(record.ChunkSums))
-				// entries = append(entries, record)
+				if processerr != nil {
+					mylog.Log.Errorf("%s Error: %v\n", path, err)
+				} else {
+					mylog.Log.Infof("%v OK\n", path)
+				}
+				mylog.Log.Debugf("Processing this file took %v", elapsed)
 			}
 
 			return nil
 		})
 	if err != nil {
-		log.Println(err)
+		mylog.Log.Error(err)
 	}
 
-	fmt.Printf("Backup contains %d files", len(entries))
-	/*enc := json.NewEncoder(os.Stdout)
-	if err := enc.Encode(entries); err != nil {
-		log.Println(err)
-	}
-	*/
 }
