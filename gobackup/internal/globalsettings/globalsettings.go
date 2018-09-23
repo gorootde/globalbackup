@@ -4,18 +4,14 @@ import (
 	"log"
 	"os"
 	"os/user"
-)
 
-//VolumeExtension defines the Filextension for backup folumes
-const VolumeExtension = ".gbv"
-const ManifestExtension = ".gmf"
-const mkdirpermissions os.FileMode = 0700
-const appname string = "gobackup"
+	"../constants"
+)
 
 //TempDir returns the directory for temporary files
 func TempDir() string {
 	path := HomeDir() + "/tmp"
-	os.MkdirAll(path, mkdirpermissions)
+	os.MkdirAll(path, constants.Filepermissions)
 	return path
 }
 
@@ -25,7 +21,7 @@ func HomeDir() string {
 	if err != nil {
 		log.Fatal(err)
 	}
-	path := usr.HomeDir + "/." + appname
-	os.MkdirAll(path, mkdirpermissions)
+	path := usr.HomeDir + "/." + constants.Appname
+	os.MkdirAll(path, constants.Filepermissions)
 	return path
 }

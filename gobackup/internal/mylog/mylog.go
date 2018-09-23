@@ -6,7 +6,6 @@ import (
 	"github.com/op/go-logging"
 )
 
-var Log = logging.MustGetLogger("main")
 var format1 = logging.MustStringFormatter(
 	`%{color}%{time:15:04:05.000} %{color:reset} %{message}`,
 )
@@ -21,7 +20,7 @@ func Init() {
 	//backend2Formatter := logging.NewBackendFormatter(backend2, format2)
 
 	backend1Leveled := logging.AddModuleLevel(backend1Formatter)
-	backend1Leveled.SetLevel(logging.ERROR, "")
+	backend1Leveled.SetLevel(logging.ERROR, "volume")
 	logging.SetBackend(backend1Formatter)
 
 }

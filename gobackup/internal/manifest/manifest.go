@@ -3,27 +3,26 @@ package manifest
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 
 	"../backuprecord"
+	"../constants"
 	"../globalsettings"
-	"../mylog"
-	"github.com/tink-ab/tempfile"
+	logging "github.com/op/go-logging"
 )
+
+var log = logging.MustGetLogger("manifest")
 
 type Manifest struct {
 	records []backuprecord.Backuprecord
 	path    string
 }
 
-func New() Manifest {
-	tmpfile, err := tempfile.TempFile(globalsettings.TempDir(), "manifest", globalsettings.ManifestExtension)
-	if err != nil {
-		log.Fatal(err)
-	}
-	mylog.Log.Debugf("Manifest '%v' created", tmpfile.Name())
-	return Manifest{path: tmpfile.Name()}
+func New(id string) Manifest {
+	path := fmt.Sprintf("%s/gobackup-manifest-%s.json", globalsettings.TempDir(), id)
+
+	log.Debugf("Manifest '%v' created", path)
+	return Manifest{path: path}
 }
 
 func (manifest *Manifest) Add(record backuprecord.Backuprecord) {
@@ -32,7 +31,7 @@ func (manifest *Manifest) Add(record backuprecord.Backuprecord) {
 }
 
 func (manifest Manifest) Persist() error {
-	manifestfile, err := os.OpenFile(manifest.path, os.O_WRONLY|os.O_CREATE|os.O_APPEND|os.O_TRUNC, os.ModeAppend)
+	manifestfile, err := os.OpenFile(manifest.path, os.O_WRONLY|os.O_CREATE|os.O_APPEND|os.O_TRUNC, constants.Filepermissions)
 	if err != nil {
 		return fmt.Errorf("Error opening file: %v", err)
 	}
