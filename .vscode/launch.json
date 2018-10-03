@@ -13,7 +13,7 @@
             "remotePath": "",
             "port": 2345,
             "host": "127.0.0.1",
-            "program": "${workspaceFolder}/gobackup",
+            "program": "${workspaceFolder}",
             "env": {},
             "args": [],
             "showLog": false
@@ -26,9 +26,11 @@
             "remotePath": "",
             "port": 2345,
             "host": "127.0.0.1",
-            "program": "${workspaceFolder}/gobackup",
-            "env": {},
-            "args": ["../testdata","scp://kolbm@hydra:/tmp/gobackuptest"],
+            "program": "${workspaceFolder}",
+            "env": {
+                "GOBACKUP_PASSWORD":"verysecret"
+            },
+            "args": ["./testdata","scp://127.0.0.1:8022:/tmp/gobackuptest"],
             "showLog": false
         }
     ]
