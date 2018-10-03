@@ -17,6 +17,19 @@
             "env": {},
             "args": [],
             "showLog": false
+        },
+        {
+            "name": "Launch with params",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "remotePath": "",
+            "port": 2345,
+            "host": "127.0.0.1",
+            "program": "${workspaceFolder}/gobackup",
+            "env": {},
+            "args": ["../testdata","scp://kolbm@hydra:/tmp/gobackuptest"],
+            "showLog": false
         }
     ]
 }

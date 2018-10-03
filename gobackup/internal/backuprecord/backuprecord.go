@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"syscall"
 	"time"
 
 	"../volume"
@@ -17,10 +18,13 @@ import (
 
 //Backuprecord is a record describing a single file in a backup set
 type Backuprecord struct {
-	Path         string
-	Signature    string
-	LastModified time.Time
-	Size         int64
+	Path         string      //Path of the file contained in this record
+	LastModified time.Time   //Last modified timestamp by filesystem
+	Size         int64       //Filesize
+	Mode         os.FileMode //various info about the file
+	UID          uint32      //ID of the owner of the file
+	GID          uint32      //ID of the owning group
+	Signature    string      //rsync signature of the file
 	Volumes      []volume.VolumeId
 }
 
@@ -35,7 +39,11 @@ func New(path string) Backuprecord {
 	if err != nil {
 		log.Fatal("Error calculating checksum", err)
 	}
-	result := Backuprecord{Path: abspath, Signature: signature, LastModified: finfo.ModTime(), Size: finfo.Size()}
+
+	uid := finfo.Sys().(*syscall.Stat_t).Uid
+	gid := finfo.Sys().(*syscall.Stat_t).Gid
+
+	result := Backuprecord{Path: abspath, Signature: signature, LastModified: finfo.ModTime(), Size: finfo.Size(), Mode: finfo.Mode(), GID: gid, UID: uid}
 	return result
 }
 
@@ -49,6 +57,7 @@ func getSignature(path string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("Error opening file: %v", err)
 	}
+	defer file.Close()
 	signature := new(bytes.Buffer)
 	err = librsync.CreateSignature(file, bufio.NewWriter(signature))
 	if err != nil {

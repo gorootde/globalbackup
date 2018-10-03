@@ -22,13 +22,14 @@ type Backupsession struct {
 	maxVolSize         int64
 	id                 string
 	currentVolumeIndex int64
+	encryptionPassword string
 }
 
 //New returns a backupsession instace. Parameter defines the max volume size.
-func New(maxVolumeSize int64) Backupsession {
+func New(maxVolumeSize int64, encryptionPassword string) Backupsession {
 	id := time.Now().UTC().Format(constants.Dateformat)
 
-	result := Backupsession{maxVolSize: maxVolumeSize, manifest: manifest.New(id), id: id}
+	result := Backupsession{maxVolSize: maxVolumeSize, manifest: manifest.New(id), id: id, encryptionPassword: encryptionPassword}
 	log.Infof("Backup Session created with id %v", id)
 	return result
 }
@@ -41,7 +42,7 @@ func (session *Backupsession) nextVolume() error {
 	}
 
 	volumeid := volume.VolumeId(fmt.Sprintf("%s-%d", session.id, session.currentVolumeIndex))
-	session.currentVolume = volume.New("verysecret", volumeid)
+	session.currentVolume = volume.New(session.encryptionPassword, volumeid, session.maxVolSize)
 	return nil
 }
 

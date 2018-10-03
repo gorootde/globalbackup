@@ -7,9 +7,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"../constants"
 	"../encryptionwriter"
 	"../globalsettings"
+	"../splitfilewriter"
 	logging "github.com/op/go-logging"
 )
 
@@ -19,26 +19,22 @@ type VolumeId string
 
 //Volume is a set of bytes containing multiple files
 type Volume struct {
-	file      *os.File
-	encwriter *encryptionwriter.EncryptionWriter
-	tarwriter *tar.Writer
-	id        VolumeId
+	splitfilewriter *splitfilewriter.Splitfilewriter
+	encwriter       *encryptionwriter.EncryptionWriter
+	tarwriter       *tar.Writer
+	id              VolumeId
 }
 
 //New creates a new volume. Secret is the passphrase for encrytion. volid is the id of the current backupsession
-func New(secret string, volid VolumeId) *Volume {
+func New(secret string, volid VolumeId, volumechunksize int64) *Volume {
 
-	archivepath := fmt.Sprintf("%s/gobackup-volume-%s.tar.gpg", globalsettings.TempDir(), volid)
+	archivepath := fmt.Sprintf("%s/gobackup-volume-%s.tar.gpg.part%%v", globalsettings.TempDir(), volid)
 
-	volfile, err := os.OpenFile(archivepath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, constants.Filepermissions)
-	if err != nil {
-		log.Fatalf("Error opening volume file: %v", err)
-	}
-
-	encwriter := encryptionwriter.New(volfile, secret)
+	splitwriter := splitfilewriter.New(archivepath, volumechunksize)
+	encwriter := encryptionwriter.New(splitwriter, secret)
 	tarwriter := tar.NewWriter(encwriter)
-	log.Debugf("Volume '%v' created", archivepath)
-	return &Volume{volfile, encwriter, tarwriter, volid}
+
+	return &Volume{splitwriter, encwriter, tarwriter, volid}
 }
 
 //GetID returns the id of the current volume
@@ -90,15 +86,6 @@ func (volume Volume) Close() {
 	if err := volume.encwriter.Close(); err != nil {
 		log.Fatalf("Error closing volume gzw: %v", err)
 	}
-	defer volume.file.Close()
-	log.Debugf("Volume '%v' closed", volume.file.Name())
-}
+	defer volume.splitfilewriter.Close()
 
-//Size returns the size of this volume
-func (volume Volume) Size() int64 {
-	finfo, err := os.Lstat(volume.file.Name())
-	if err != nil {
-		log.Fatal(err)
-	}
-	return finfo.Size()
 }
